@@ -103,3 +103,23 @@ def delete_job(
     db.refresh(db_job)
 
     return db_job
+
+@app.patch("/jobs/{job_id}/activate", response_model=JobResponse)
+def activate_job(
+    job_id: int,
+    db: Session = Depends(get_db)
+):
+    db_job = db.get(Job, job_id)
+
+    if db_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
+
+    db_job.is_active = True
+
+    db.commit()
+    db.refresh(db_job)
+
+    return db_job

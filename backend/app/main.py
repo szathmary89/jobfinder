@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.database import engine, Base, get_db
 from app.models.job import Job
-from app.schemas.job import JobResponse
+from app.schemas.job import JobResponse, JobCreate
 
 
 app = FastAPI(
@@ -47,3 +47,14 @@ def get_jobs(db: Session = Depends(get_db)):
     statement = select(Job).where(Job.is_active == True)
     jobs = db.scalars(statement).all()
     return jobs
+
+
+@app.post("/jobs", response_model=JobResponse, status_code=201)
+def create_job(job: JobCreate, db: Session = Depends(get_db)):
+    db_job = Job(**job.model_dump())
+
+    db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+
+    return db_job

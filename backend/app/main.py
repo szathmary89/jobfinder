@@ -1,5 +1,5 @@
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
@@ -54,6 +54,51 @@ def create_job(job: JobCreate, db: Session = Depends(get_db)):
     db_job = Job(**job.model_dump())
 
     db.add(db_job)
+    db.commit()
+    db.refresh(db_job)
+
+    return db_job
+
+
+@app.put("/jobs/{job_id}", response_model=JobResponse)
+def update_job(
+    job_id: int,
+    job: JobCreate,
+    db: Session = Depends(get_db)
+):
+    db_job = db.get(Job, job_id)
+
+    if db_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
+
+    job_data = job.model_dump()
+
+    for key, value in job_data.items():
+        setattr(db_job, key, value)
+
+    db.commit()
+    db.refresh(db_job)
+
+    return db_job
+
+@app.delete("/jobs/{job_id}", response_model=JobResponse)
+def delete_job(
+    job_id: int,
+    db: Session = Depends(get_db)
+):
+    db_job = db.get(Job, job_id)
+
+    if db_job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
+
+    db_job.is_active = False
+
     db.commit()
     db.refresh(db_job)
 

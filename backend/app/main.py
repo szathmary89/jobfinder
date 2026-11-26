@@ -3,8 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
-from sqlalchemy import select
-
+from sqlalchemy import select, or_
 from app.database import engine, Base, get_db
 from app.models.job import Job
 from app.schemas.job import JobResponse, JobCreate
@@ -43,9 +42,31 @@ def health_check():
 
 
 @app.get("/jobs", response_model=list[JobResponse])
-def get_jobs(db: Session = Depends(get_db)):
-    statement = select(Job).where(Job.is_active == True)
+def get_jobs(
+    q: str | None = None,
+    location: str | None = None,
+    db: Session = Depends(get_db)
+):
+    statement = select(Job).where(Job.is_active.is_(True))
+
+    if q:
+        keyword = f"%{q.strip()}%"
+        statement = statement.where(
+            or_(
+                Job.title.ilike(keyword),
+                Job.company.ilike(keyword),
+                Job.description.ilike(keyword)
+            )
+        )
+
+    if location:
+        location_filter = f"%{location.strip()}%"
+        statement = statement.where(
+            Job.location.ilike(location_filter)
+        )
+
     jobs = db.scalars(statement).all()
+
     return jobs
 
 

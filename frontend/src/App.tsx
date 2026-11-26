@@ -30,6 +30,45 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [jobsError, setJobsError] = useState("");
 
+  const [keyword, setKeyword] = useState("");
+  const [location, setLocation] = useState("");
+
+  async function loadJobs(searchKeyword = "", searchLocation = "") {
+    setLoading(true);
+    setJobsError("");
+
+    const params = new URLSearchParams();
+
+    if (searchKeyword.trim()) {
+      params.set("q", searchKeyword.trim());
+    }
+
+    if (searchLocation.trim()) {
+      params.set("location", searchLocation.trim());
+    }
+
+    const queryString = params.toString();
+    const url = `http://127.0.0.1:8000/jobs${
+      queryString ? `?${queryString}` : ""
+    }`;
+
+    try {
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Nem sikerült lekérni az állásokat.");
+      }
+
+      const data: Job[] = await response.json();
+      setJobs(data);
+    } catch {
+      setJobsError("Az állások betöltése nem sikerült.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  
   useEffect(() => {
     fetch("http://127.0.0.1:8000/health")
       .then((response) => {
@@ -62,6 +101,16 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  function handleSearch() {
+    loadJobs(keyword, location);
+  }
+
+  function handleClear() {
+    setKeyword("");
+    setLocation("");
+    loadJobs();
+  }
 
   function formatSalary(job: Job) {
     if (job.salary_min === null && job.salary_max === null) {
@@ -102,12 +151,54 @@ function App() {
       <section>
         <h2>Álláshirdetések</h2>
 
+        <div className="search-panel">
+          <div className="search-field">
+            <label htmlFor="keyword">Kulcsszó</label>
+            <input
+              id="keyword"
+              type="text"
+              placeholder="Pl. Java, eladó, könyvelő"
+              value={keyword}
+              onChange={(event) => setKeyword(event.target.value)}
+            />
+          </div>
+
+          <div className="search-field">
+            <label htmlFor="location">Település</label>
+            <input
+              id="location"
+              type="text"
+              placeholder="Pl. Hatvan, Gödöllő"
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+            />
+          </div>
+
+          <div className="search-actions">
+            <button onClick={handleSearch} disabled={loading}>
+              Keresés
+            </button>
+
+            <button
+              className="clear-button"
+              onClick={handleClear}
+              disabled={loading}
+            >
+              Szűrők törlése
+            </button>
+          </div>
+        </div>
+
         {loading && <p>Állások betöltése...</p>}
 
         {jobsError && <p>{jobsError}</p>}
 
         {!loading && !jobsError && jobs.length === 0 && (
-          <p>Jelenleg nincs megjeleníthető álláshirdetés.</p>
+          <p>Nincs a keresési feltételeknek megfelelő álláshirdetés.</p>
+        )}
+
+        {!loading && !jobsError && jobs.length > 0 && (
+          <p>Találatok száma: {jobs.length}</p>
         )}
 
         <div className="job-list">
